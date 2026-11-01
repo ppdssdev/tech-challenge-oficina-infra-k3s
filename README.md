@@ -1,54 +1,85 @@
-# Oficina — infraestrutura K3S
+# Oficina — infraestrutura AWS/K3s (Fase 3)
 
-Bootstrap de contratos Terraform. **Nenhum recurso cloud implementado ou provisionado.**
-Sem provider AWS, backend remoto ativo, data sources ou recursos. `integration_contract`
-é apenas metadado com `implemented=false`; não contém IDs/endpoints reais.
+Terraform real para **staging em us-east-2**, pronto para revisão e provisionamento
+posterior. **Nenhum recurso AWS provisionado; K3s não validado em execução na AWS.**
+Sem CD, plan real no CI, apply/destroy automático, OIDC de criação ou merge automático.
 
-Responsabilidade futura: Rede/VPC, duas subnets privadas em AZs distintas para RDS, subnet pública para EC2 K3s, SGs base de aplicação e autenticação, IAM mínimo, instalação K3s e registry.
-
-## CI e validação local
-
-```sh
-terraform fmt -check -recursive
-terraform init -backend=false -input=false
-terraform validate
-python3 scripts/bootstrap_policy.py
-python3 -m venv .venv
-. .venv/bin/activate
-pip install checkov==3.2.471
-checkov --directory . --framework terraform --compact
+```mermaid
+flowchart TB
+  Internet --- IGW
+  subgraph VPC[10.30.0.0/16 - Ohio]
+    IGW[Internet Gateway] --- Public[10.30.0.0/24 - AZ a - EC2 K3s]
+    PrivateA[10.30.10.0/24 - AZ a - sem internet]
+    PrivateB[10.30.11.0/24 - AZ b - sem internet]
+    Public -. futuro SG 5432 .-> DB[RDS futuro]
+    PrivateA -.-> DB
+    PrivateB -.-> DB
+  end
+  SSM[SSM - conexão TLS iniciada pela EC2] --- Public
 ```
 
-Terraform 1.14.6 no CI; Python 3.12. Check `Terraform validation and security`.
-Checkov roda sem soft-fail; nesta fase não há recursos para avaliar controles AWS.
-A política estática adicional impede introduzir recursos inadvertidamente.
-A PR que implementar infraestrutura deve substituir essa barreira por regras reais
-(e.g. criptografia, acesso privado, IAM mínimo), incluir provider fixado e lockfile.
-Não executar plan/apply/destroy nesta etapa. Exemplos de ambientes não contêm segredos.
+```mermaid
+flowchart LR
+  Boot[cloud-init] --> Verify[K3s fixo + SHA256]
+  Verify --> Systemd[systemd]
+  Systemd --> K3s[API + SQLite + containerd]
+  K3s --> Metrics[metrics-server]
+  K3s --> EBS[gp3 criptografado]
+  K3s -. futuro .-> App[Java + probes + HPA]
+  K3s -. futuro .-> TLS[Ingress TLS]
+```
 
-## Integrações futuras
+Rede em network.tf; SGs em security.tf; IAM mínimo SSM em iam.tf; EC2/AMI/IMDSv2
+em compute.tf; interfaces em outputs.tf. Uma EC2, root gp3 30 GiB (máximo 40),
+sem SSH, 6443 público, NodePort público, NAT, EKS, ALB/NLB, EIP ou banco.
+HTTPS ingress desabilitado por padrão; saída TLS para bootstrap/SSM/registries.
+EBS persiste em reboot/stop; será apagado em replace/destroy. Single-node sem HA.
 
-Campos previstos: vpc_id, private_subnet_ids, app_security_group_id, auth_security_group_id, image_repository_url. Nunca exportar senha, chave privada ou kubeconfig.
-Esta stack não depende do RDS; publica rede e SGs base. Não gerencia regras de entrada do SG de banco.
+Pré-requisitos: Terraform **1.14.6**, provider **6.38.0** com lockfile, Python 3.12,
+Checkov **3.2.471**, bc-python-hcl2 **0.4.3**, ShellCheck e TFLint **0.61.0**.
+Conta AWS não é necessária à validação:
 
-[Contratos e ordem de provisionamento](https://github.com/ppdssdev/tech-challenge-oficina/blob/feature/fase3-multirepo-bootstrap/docs/fase3/aws-infrastructure-dependencies.md).
-Após inicialização: PR obrigatório, CI e revisão. Nenhum deploy habilitado.
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+pip install checkov==3.2.471 bc-python-hcl2==0.4.3
+bash scripts/preflight.sh
+tflint --init
+tflint
+```
 
-## Revisão corretiva do bootstrap
+Obrigatórias antes de provisionar: `aws_account_id`, `owner`, `ami_id` oficial
+Canonical Ubuntu 24.04 amd64 fixo. Copiar staging.tfvars.example para arquivo local
+ignorado. Confirmar elegibilidade/custos antes de marcar eligibility_confirmed.
+Default t3.medium **não tem elegibilidade presumida**; alternativa c7i-flex.large
+exige avaliação. Production fica reservada para outra revisão, sem segundo ambiente.
 
-Aprovação deste bootstrap não representa conclusão da Fase 3. O workflow atual
-executa **CI**, inclusive em push main; não implementa CD automático. Environments
-existentes não são prova de deployment. Nenhum recurso AWS foi implementado aqui.
+Comandos previstos, **apenas depois de autorização explícita**:
 
-O checkout padrão de `pull_request` testa o merge sintético (GITHUB_SHA), enquanto
-`github.event.pull_request.head.sha` identifica o HEAD da PR. Registrar ambos, base,
-repo e run ID/attempt ao relacionar checks e artifacts. Nunca chamar o SHA de merge
-de CI de HEAD da PR nem de release implantada.
+```sh
+terraform plan -var-file=environments/staging.tfvars -out=staging.tfplan
+terraform apply staging.tfplan
+terraform plan -destroy -var-file=environments/staging.tfvars -out=cleanup.tfplan
+terraform apply cleanup.tfplan
+```
 
-`integration_contract` é metadado com implemented=false; `planned_fields` enumera
-nomes previstos. Não é conjunto de outputs reais consumíveis. Ainda faltam recursos,
-interfaces tipadas entre stacks e testes de integração. O CI não gera plano nem
-publica artifact de infraestrutura; Checkov sem recursos não comprova controles AWS.
+Leia o [passo a passo de provisionamento](docs/deployment-runbook.md), incluindo
+AMI, credenciais temporárias, backend S3 futuro, SSM, túnel Kubernetes e rollback;
+e o [procedimento de destruição](docs/destroy-runbook.md), incluindo dependências,
+backups e busca de órfãos. Estes comandos não foram executados nesta entrega.
 
-[Matriz, contratos e diagnóstico de governança](https://github.com/ppdssdev/tech-challenge-oficina/blob/feature/fase3-multirepo-bootstrap/docs/fase3/corrective-review.md).
-[Rastreabilidade e gates de CD](https://github.com/ppdssdev/tech-challenge-oficina/blob/feature/fase3-multirepo-bootstrap/docs/fase3/cicd-strategy.md).
+Ordem: K3s/rede -> RDS -> migrações/aplicação -> Lambda/auth -> observabilidade.
+[Arquitetura e contrato v2](docs/aws-architecture.md) define outputs tipados,
+regras SG de propriedade da stack RDS e publicação sem leitura de state cruzado.
+Registry, banco, endpoint público/JWKS/TLS e aplicação permanecem futuros.
+
+[Custos](docs/cost-estimate.md), [Free Plan](docs/free-plan-compatibility.md) e
+[relatório de segurança](docs/security-report.md) são leitura obrigatória.
+Budget US$5 é alerta, não teto de gasto; e-mails não confirmados. Billing deve ser
+acompanhado pelo proprietário. Nenhum upgrade ou acesso root necessário.
+
+CI executa fmt/init sem backend/validate, TFLint, Checkov, políticas de inventário,
+segurança/custo, testes por mutação, testes simulados de bootstrap, ShellCheck e
+scanner de segredos. A antiga barreira de bootstrap foi substituída por baseline
+AST revisável: novos recursos exigem revisão de custos e segurança. Exceções são
+locais e justificadas, sem soft-fail. CI não comprova conectividade ou disponibilidade.

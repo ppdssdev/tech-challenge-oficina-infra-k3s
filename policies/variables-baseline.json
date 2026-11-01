@@ -1,0 +1,191 @@
+{
+  "ami_id": {
+    "__end_line__": 41,
+    "__start_line__": 34,
+    "description": [
+      "AMI regional imut\u00e1vel Ubuntu Server 24.04 amd64 Canonical, validada antes do plan. Sem latest."
+    ],
+    "type": [
+      "${string}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${can(regex(\"^ami-[0-9a-f]{17}$\",var.ami_id))}"
+        ],
+        "error_message": [
+          "Informe AMI fixa oficial de Ohio."
+        ]
+      }
+    ]
+  },
+  "aws_account_id": {
+    "__end_line__": 25,
+    "__start_line__": 18,
+    "description": [
+      "ID n\u00e3o secreto da conta aprovada; evita conta errada."
+    ],
+    "type": [
+      "${string}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${can(regex(\"^[0-9]{12}$\",var.aws_account_id))}"
+        ],
+        "error_message": [
+          "Informe 12 d\u00edgitos."
+        ]
+      }
+    ]
+  },
+  "aws_region": {
+    "__end_line__": 17,
+    "__start_line__": 10,
+    "default": [
+      "us-east-2"
+    ],
+    "type": [
+      "${string}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${var.aws_region == \"us-east-2\"}"
+        ],
+        "error_message": [
+          "Somente Ohio."
+        ]
+      }
+    ]
+  },
+  "eligibility_confirmed": {
+    "__end_line__": 62,
+    "__start_line__": 58,
+    "default": [
+      false
+    ],
+    "description": [
+      "Somente true ap\u00f3s revis\u00e3o humana do plano, pre\u00e7o, saldo e tipo de inst\u00e2ncia. N\u00e3o \u00e9 autoriza\u00e7\u00e3o para provisionar."
+    ],
+    "type": [
+      "${bool}"
+    ]
+  },
+  "enable_https_ingress": {
+    "__end_line__": 66,
+    "__start_line__": 63,
+    "default": [
+      false
+    ],
+    "type": [
+      "${bool}"
+    ]
+  },
+  "environment": {
+    "__end_line__": 9,
+    "__start_line__": 1,
+    "default": [
+      "staging"
+    ],
+    "description": [
+      "Somente staging autorizado; production requer revis\u00e3o e state separado."
+    ],
+    "type": [
+      "${string}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${var.environment == \"staging\"}"
+        ],
+        "error_message": [
+          "Somente staging nesta fase."
+        ]
+      }
+    ]
+  },
+  "https_ingress_cidrs": {
+    "__end_line__": 75,
+    "__start_line__": 67,
+    "default": [
+      []
+    ],
+    "description": [
+      "Origens IPv4 explicitamente aprovadas para o futuro ingress TLS."
+    ],
+    "type": [
+      "${set(string)}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${alltrue([for c in var.https_ingress_cidrs : can(cidrnetmask(c))])}"
+        ],
+        "error_message": [
+          "Use CIDRs IPv4 v\u00e1lidos."
+        ]
+      }
+    ]
+  },
+  "instance_type": {
+    "__end_line__": 49,
+    "__start_line__": 42,
+    "default": [
+      "t3.medium"
+    ],
+    "type": [
+      "${string}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${contains(['t3.medium', 'c7i-flex.large'],var.instance_type)}"
+        ],
+        "error_message": [
+          "Somente t3.medium ou c7i-flex.large (2 vCPU/4 GiB); confirmar Free Plan e pre\u00e7o."
+        ]
+      }
+    ]
+  },
+  "owner": {
+    "__end_line__": 33,
+    "__start_line__": 26,
+    "description": [
+      "Respons\u00e1vel/c\u00f3digo da equipe, sem dados pessoais."
+    ],
+    "type": [
+      "${string}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${length(trimspace(var.owner)) > 2}"
+        ],
+        "error_message": [
+          "Owner obrigat\u00f3rio."
+        ]
+      }
+    ]
+  },
+  "root_volume_gib": {
+    "__end_line__": 57,
+    "__start_line__": 50,
+    "default": [
+      30
+    ],
+    "type": [
+      "${number}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${var.root_volume_gib >= 30 && var.root_volume_gib <= 40 && floor(var.root_volume_gib) == var.root_volume_gib}"
+        ],
+        "error_message": [
+          "gp3 entre 30 e 40 GiB."
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "locals": [
+    {
+      "__end_line__": 15,
+      "__start_line__": 6,
+      "name": [
+        "oficina-${var.environment}"
+      ],
+      "tags": [
+        {
+          "CostCenter": "fiap-fase3",
+          "Environment": "${var.environment}",
+          "ManagedBy": "terraform",
+          "Owner": "${var.owner}",
+          "Project": "fiap-oficina"
+        }
+      ]
+    }
+  ],
+  "provider": [
+    {
+      "aws": {
+        "__end_line__": 5,
+        "__start_line__": 1,
+        "allowed_account_ids": [
+          [
+            "${var.aws_account_id}"
+          ]
+        ],
+        "default_tags": [
+          {
+            "tags": [
+              "${local.tags}"
+            ]
+          }
+        ],
+        "region": [
+          "${var.aws_region}"
+        ]
+      }
+    }
+  ]
+}

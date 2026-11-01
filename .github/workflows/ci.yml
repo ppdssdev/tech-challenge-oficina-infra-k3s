@@ -28,9 +28,15 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - run: terraform fmt -check -recursive
-      - run: terraform init -backend=false -input=false
-      - run: terraform validate
-      - run: python scripts/bootstrap_policy.py
-      - run: pip install checkov==3.2.471
-      - run: checkov --directory . --framework terraform --compact
+      - run: pip install checkov==3.2.471 bc-python-hcl2==0.4.3
+      - run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - run: bash scripts/preflight.sh
+      - name: Formatting and patch hygiene
+        run: git diff --check
+      - name: TFLint
+        run: |
+          curl --fail --location --proto '=https' --tlsv1.2 https://github.com/terraform-linters/tflint/releases/download/v0.61.0/tflint_linux_amd64.zip -o /tmp/tflint.zip
+          echo 'ca4e4e8cb7cc3436f2b6979e9c4fd4e2623a66fcca1ad1fe12f8669967636ae2  /tmp/tflint.zip' | sha256sum --check --strict
+          unzip /tmp/tflint.zip -d /tmp/tflint-bin
+          /tmp/tflint-bin/tflint --init
+          /tmp/tflint-bin/tflint

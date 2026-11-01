@@ -1,0 +1,20 @@
+[
+  "aws_default_security_group.closed",
+  "aws_iam_instance_profile.node",
+  "aws_iam_role.node",
+  "aws_iam_role_policy.ssm",
+  "aws_instance.node",
+  "aws_internet_gateway.this",
+  "aws_route.internet",
+  "aws_route_table.private",
+  "aws_route_table.public",
+  "aws_route_table_association.private",
+  "aws_route_table_association.public",
+  "aws_security_group.app",
+  "aws_security_group.auth",
+  "aws_subnet.private",
+  "aws_subnet.public",
+  "aws_vpc.this",
+  "aws_vpc_security_group_egress_rule.https",
+  "aws_vpc_security_group_ingress_rule.https"
+]
