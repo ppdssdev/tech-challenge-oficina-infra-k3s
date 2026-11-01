@@ -7,6 +7,8 @@ trap 'echo "Bootstrap failed at line $LINENO"' ERR
 K3S_VERSION='v1.34.6+k3s1'
 K3S_SHA256='7c81556ac1212213a07180f92eca57db8caef886e58bbad15e9dada10782c10d'
 mkdir -p /var/lib/oficina /etc/rancher/k3s /var/lib/rancher/k3s
+# Uma repetição malsucedida não pode preservar evidência de sucesso anterior.
+rm -f /var/lib/oficina/bootstrap-complete
 cat >/etc/modules-load.d/k3s.conf <<'EOF'
 overlay
 br_netfilter
@@ -41,7 +43,7 @@ curl --fail --location --proto '=https' --tlsv1.2 --retry 5 --retry-delay 5 \
 printf '%s  %s\n' "$K3S_SHA256" /var/lib/oficina/k3s.download | sha256sum --check --strict
 install -m 0755 /var/lib/oficina/k3s.download /usr/local/bin/k3s
 rm /var/lib/oficina/k3s.download
-# Hop limit 1 plus forwarding firewall: pods cannot obtain instance-role credentials.
+# Defense for ordinary pod networking; hostNetwork/privileged need admission controls.
 cat >/etc/systemd/system/oficina-imds-guard.service <<'EOF'
 [Unit]
 Description=Block pod access to instance metadata

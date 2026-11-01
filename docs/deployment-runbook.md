@@ -4,6 +4,8 @@ Este documento contém comandos previstos. Nenhum plan/apply/destroy foi executa
 na implementação. Não habilitar CD. Abra um terminal no repositório infra-k3s,
 na revisão aprovada, e reserve tempo para desmontar depois da apresentação.
 
+Siga o [checklist de evidências e limites dos mocks](operational-validation.md).
+
 1. Leia custo, arquitetura, segurança e Free Plan. Confirme autorização, saldo,
    região Ohio, permissões mínimas e tipo elegível. Budget não limita gasto.
 2. Instale Git, Terraform 1.14.6, AWS CLI v2, plugin Session Manager, Python 3.12,
@@ -110,6 +112,8 @@ terminar e limitar RBAC para usuários futuros. Não publicar conteúdo no ticke
     Lambda/auth -> observabilidade/testes ponta a ponta. Sem leitura cruzada de states.
 
 ## Rollback/recriação
+
+Procedimento detalhado obrigatório: [backup e restauração](backup-restore.md).
 
 Antes de mudar AMI/user-data/K3s: interromper workloads e K3s em janela de manutenção;
 criar backup consistente de /var/lib/rancher/k3s e /etc/rancher/k3s (inclui token e

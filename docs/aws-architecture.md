@@ -121,3 +121,21 @@ metrics-server é incluído, HPA requer requests de CPU. Carga controlada, obser
 kubectl top e HPA; single-node limita réplicas e não aumenta capacidade física.
 Prometheus/Grafana só após medir memória: retenção curta, requests/limits e acesso
 via SSM/port-forward. Sem stack completa automática neste bootstrap.
+
+## Gate da integração RDS futura
+
+| Recurso Terraform | Stack/state proprietário | Regra |
+|---|---|---|
+| SG app/auth, saída app 443 | K3s | Mantidos aqui, sem regras inline |
+| SG banco e DB subnet group | RDS | VPC e subnets do contrato v2 |
+| aws_vpc_security_group_egress_rule app → banco | RDS | TCP 5432, security_group_id=app, referenced_security_group_id=banco |
+| aws_vpc_security_group_ingress_rule banco ← app | RDS | TCP 5432, security_group_id=banco, referenced_security_group_id=app |
+| Saída auth → banco e entrada banco ← auth | RDS | Recursos separados, mesmo padrão TCP 5432 |
+
+A PR RDS deve provar ambas as pontas com testes de contrato: só entrada não basta,
+pois app hoje só permite saída 443. Proibir CIDR público/0.0.0.0/0 para PostgreSQL,
+regras inline e duplicação da mesma regra em dois states. Não adicionar regra nesta
+stack que dependa de output RDS. Remover regras pela stack RDS antes de destruir SGs
+K3s. Após provisionamento autorizado do banco, testar DNS privado e conexão TCP/TLS
+5432 a partir de pod app, autenticação e bloqueio de origem não autorizada; registrar
+evidência sem senha. Nenhum recurso RDS ou regra 5432 é criado nesta revisão.

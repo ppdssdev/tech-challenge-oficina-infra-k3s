@@ -5,7 +5,7 @@ Obter autorização explícita e decidir o que preservar: root EBS e todos os vo
 local-path serão apagados com a EC2. Stop/start não é cleanup e EBS continua cobrado.
 
 1. Suspender consumidores e tráfego; exportar somente evidências não sensíveis.
-2. Fazer backup consistente se necessário (ver deployment-runbook). Snapshots têm
+2. Fazer backup consistente se necessário e verificar cópia externa e ensaio de restauração (ver [backup/restore](backup-restore.md)). Snapshots têm
    custo e não são excluídos automaticamente pelo destroy desta stack.
 3. Destruir stacks consumidoras na ordem inversa: auth/Lambda (aguardar liberação
    de ENIs), aplicação, RDS conforme seu runbook com proteção/snapshot final; por

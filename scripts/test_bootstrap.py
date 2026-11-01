@@ -10,11 +10,14 @@ import unittest
 from policy import ROOT
 
 class BootstrapTests(unittest.TestCase):
-    def run_bootstrap(self, fail):
+    def run_bootstrap(self, fail, stale_marker=False):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             for directory in ('etc/modules-load.d', 'etc/sysctl.d', 'etc/systemd/system', 'var/log', 'usr/local/bin'):
                 (root / directory).mkdir(parents=True)
+            if stale_marker:
+                (root / 'var/lib/oficina').mkdir(parents=True)
+                (root / 'var/lib/oficina/bootstrap-complete').touch()
             source = (ROOT / 'scripts/bootstrap.sh').read_text()
             for prefix in ('/var/', '/etc/', '/usr/local/'):
                 source = source.replace(prefix, tmp + prefix)
@@ -38,6 +41,11 @@ class BootstrapTests(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertFalse(marker)
         self.assertFalse(binary)
+
+    def test_failed_rerun_removes_stale_marker(self):
+        code, marker, _ = self.run_bootstrap('sha256sum', stale_marker=True)
+        self.assertNotEqual(code, 0)
+        self.assertFalse(marker)
 
     def test_unhealthy_cluster(self):
         code, marker, _ = self.run_bootstrap('readiness')
