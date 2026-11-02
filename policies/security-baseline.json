@@ -17,7 +17,7 @@
     "encryption_configuration": [
       {
         "encryption_type": [
-          "AES256"
+          "KMS"
         ]
       }
     ],
