@@ -5,3 +5,9 @@
 !*.tfvars.example
 .env*
 .venv/
+__pycache__/
+*.pyc
+*.pem
+*.key
+kubeconfig*
+crash.log

@@ -1,0 +1,413 @@
+{
+  "aws_default_security_group.closed": {
+    "__end_line__": 11,
+    "__start_line__": 8,
+    "tags": [
+      {
+        "Name": "${local.name}-default-deny"
+      }
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_iam_instance_profile.node": {
+    "__end_line__": 27,
+    "__start_line__": 23,
+    "name": [
+      "${local.name}-node"
+    ],
+    "role": [
+      "${aws_iam_role.node.name}"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-node"
+      }
+    ]
+  },
+  "aws_iam_role.node": {
+    "__end_line__": 8,
+    "__start_line__": 1,
+    "assume_role_policy": [
+      "${jsonencode({'Version': '2012-10-17', 'Statement': [{'Effect': 'Allow', 'Action': 'sts:AssumeRole', 'Principal': {'Service': 'ec2.amazonaws.com'}}]})}"
+    ],
+    "name": [
+      "${local.name}-node"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-node"
+      }
+    ]
+  },
+  "aws_iam_role_policy.ssm": {
+    "__end_line__": 22,
+    "__start_line__": 9,
+    "name": [
+      "session-manager-minimal"
+    ],
+    "policy": [
+      "${jsonencode({'Version': '2012-10-17', 'Statement': [{'Effect': 'Allow', 'Action': ['ssm:UpdateInstanceInformation', 'ssmmessages:CreateControlChannel', 'ssmmessages:CreateDataChannel', 'ssmmessages:OpenControlChannel', 'ssmmessages:OpenDataChannel'], 'Resource': '*'}]})}"
+    ],
+    "role": [
+      "${aws_iam_role.node.id}"
+    ]
+  },
+  "aws_instance.node": {
+    "__end_line__": 62,
+    "__start_line__": 20,
+    "ami": [
+      "${data.aws_ami.node.id}"
+    ],
+    "associate_public_ip_address": [
+      true
+    ],
+    "depends_on": [
+      [
+        "${aws_route.internet}",
+        "${aws_route_table_association.public}",
+        "${aws_iam_role_policy.ssm}",
+        "${aws_vpc_security_group_egress_rule.https}"
+      ]
+    ],
+    "dynamic": [
+      {
+        "credit_specification": {
+          "content": [
+            {
+              "cpu_credits": [
+                "standard"
+              ]
+            }
+          ],
+          "for_each": [
+            "${var.instance_type == \"t3.medium\" ? [1] : []}"
+          ]
+        }
+      }
+    ],
+    "ebs_optimized": [
+      true
+    ],
+    "iam_instance_profile": [
+      "${aws_iam_instance_profile.node.name}"
+    ],
+    "instance_type": [
+      "${var.instance_type}"
+    ],
+    "lifecycle": [
+      {
+        "precondition": [
+          {
+            "condition": [
+              "${var.eligibility_confirmed}"
+            ],
+            "error_message": [
+              "Bloqueado: confirme elegibilidade Free Plan, pre\u00e7o, saldo, permiss\u00f5es e aprova\u00e7\u00e3o antes de planejar."
+            ]
+          },
+          {
+            "condition": [
+              "${!var.enable_https_ingress || length(var.https_ingress_cidrs) > 0}"
+            ],
+            "error_message": [
+              "Defina explicitamente as origens HTTPS."
+            ]
+          }
+        ]
+      }
+    ],
+    "metadata_options": [
+      {
+        "http_endpoint": [
+          "enabled"
+        ],
+        "http_put_response_hop_limit": [
+          1
+        ],
+        "http_tokens": [
+          "required"
+        ],
+        "instance_metadata_tags": [
+          "disabled"
+        ]
+      }
+    ],
+    "monitoring": [
+      false
+    ],
+    "root_block_device": [
+      {
+        "delete_on_termination": [
+          true
+        ],
+        "encrypted": [
+          true
+        ],
+        "tags": [
+          "${local.tags}"
+        ],
+        "volume_size": [
+          "${var.root_volume_gib}"
+        ],
+        "volume_type": [
+          "gp3"
+        ]
+      }
+    ],
+    "subnet_id": [
+      "${aws_subnet.public.id}"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-k3s"
+      }
+    ],
+    "user_data": [
+      "${file(\"${path.module}/scripts/bootstrap.sh\")}"
+    ],
+    "user_data_replace_on_change": [
+      true
+    ],
+    "vpc_security_group_ids": [
+      [
+        "${aws_security_group.app.id}"
+      ]
+    ]
+  },
+  "aws_internet_gateway.this": {
+    "__end_line__": 30,
+    "__start_line__": 27,
+    "tags": [
+      {
+        "Name": "${local.name}"
+      }
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_route.internet": {
+    "__end_line__": 39,
+    "__start_line__": 35,
+    "destination_cidr_block": [
+      "0.0.0.0/0"
+    ],
+    "gateway_id": [
+      "${aws_internet_gateway.this.id}"
+    ],
+    "route_table_id": [
+      "${aws_route_table.public.id}"
+    ]
+  },
+  "aws_route_table.private": {
+    "__end_line__": 48,
+    "__start_line__": 44,
+    "for_each": [
+      "${aws_subnet.private}"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-private-${each.key}"
+      }
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_route_table.public": {
+    "__end_line__": 34,
+    "__start_line__": 31,
+    "tags": [
+      {
+        "Name": "${local.name}-public"
+      }
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_route_table_association.private": {
+    "__end_line__": 53,
+    "__start_line__": 49,
+    "for_each": [
+      "${aws_subnet.private}"
+    ],
+    "route_table_id": [
+      "${aws_route_table.private[each.key].id}"
+    ],
+    "subnet_id": [
+      "${each.value.id}"
+    ]
+  },
+  "aws_route_table_association.public": {
+    "__end_line__": 43,
+    "__start_line__": 40,
+    "route_table_id": [
+      "${aws_route_table.public.id}"
+    ],
+    "subnet_id": [
+      "${aws_subnet.public.id}"
+    ]
+  },
+  "aws_security_group.app": {
+    "__end_line__": 6,
+    "__start_line__": 1,
+    "description": [
+      "K3s: sem entrada por padrao; HTTPS opt-in"
+    ],
+    "name": [
+      "${local.name}-app"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-app"
+      }
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_security_group.auth": {
+    "__end_line__": 13,
+    "__start_line__": 7,
+    "description": [
+      "Identidade de rede da futura Lambda; sem regras nesta stack"
+    ],
+    "name": [
+      "${local.name}-auth"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-auth"
+      }
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_subnet.private": {
+    "__end_line__": 26,
+    "__start_line__": 19,
+    "availability_zone": [
+      "${each.value}"
+    ],
+    "cidr_block": [
+      "${each.key == \"a\" ? \"10.30.10.0/24\" : \"10.30.11.0/24\"}"
+    ],
+    "for_each": [
+      {
+        "a": "us-east-2a",
+        "b": "us-east-2b"
+      }
+    ],
+    "map_public_ip_on_launch": [
+      false
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-private-${each.key}"
+      }
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_subnet.public": {
+    "__end_line__": 18,
+    "__start_line__": 12,
+    "availability_zone": [
+      "us-east-2a"
+    ],
+    "cidr_block": [
+      "10.30.0.0/24"
+    ],
+    "map_public_ip_on_launch": [
+      false
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-public-a"
+      }
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_vpc.this": {
+    "__end_line__": 7,
+    "__start_line__": 1,
+    "cidr_block": [
+      "10.30.0.0/16"
+    ],
+    "enable_dns_hostnames": [
+      true
+    ],
+    "enable_dns_support": [
+      true
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}"
+      }
+    ]
+  },
+  "aws_vpc_security_group_egress_rule.https": {
+    "__end_line__": 22,
+    "__start_line__": 14,
+    "cidr_ipv4": [
+      "0.0.0.0/0"
+    ],
+    "description": [
+      "Bootstrap GitHub, registries e endpoints publicos SSM via TLS"
+    ],
+    "from_port": [
+      443
+    ],
+    "ip_protocol": [
+      "tcp"
+    ],
+    "security_group_id": [
+      "${aws_security_group.app.id}"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-https-out"
+      }
+    ],
+    "to_port": [
+      443
+    ]
+  },
+  "aws_vpc_security_group_ingress_rule.https": {
+    "__end_line__": 32,
+    "__start_line__": 23,
+    "cidr_ipv4": [
+      "${each.value}"
+    ],
+    "description": [
+      "Ingress TLS futuro, explicitamente habilitado"
+    ],
+    "for_each": [
+      "${var.enable_https_ingress ? var.https_ingress_cidrs : toset([])}"
+    ],
+    "from_port": [
+      443
+    ],
+    "ip_protocol": [
+      "tcp"
+    ],
+    "security_group_id": [
+      "${aws_security_group.app.id}"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-https-in"
+      }
+    ],
+    "to_port": [
+      443
+    ]
+  }
+}

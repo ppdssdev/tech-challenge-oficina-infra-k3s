@@ -1,2 +1,10 @@
 environment = "staging"
-aws_region  = "us-east-2"
+aws_region = "us-east-2"
+aws_account_id = "000000000000" # substituir pela conta aprovada
+owner = "equipe-fiap"
+ami_id = "ami-00000000000000000" # substituir por AMI Canonical fixa, validada em Ohio
+instance_type = "t3.medium" # não presumir elegibilidade Free Plan
+root_volume_gib = 30
+eligibility_confirmed = false
+# enable_https_ingress = true
+# https_ingress_cidrs = ["203.0.113.10/32"]

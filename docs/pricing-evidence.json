@@ -1,0 +1,53 @@
+{
+  "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-2/index.json",
+  "retrieved": "2026-11-01",
+  "publicationDate": "2026-10-29T17:56:34Z",
+  "region": "us-east-2",
+  "rows": [
+    {
+      "sku": "M7SNV383JPWT8MVX",
+      "type": "gp3",
+      "description": "$0.005 per provisioned IOPS-month of gp3 - US East (Ohio)",
+      "price": {
+        "USD": "0.0050000000"
+      },
+      "unit": "IOPS-Mo"
+    },
+    {
+      "sku": "UR7G3ZBXJYWMGZQK",
+      "type": "c7i-flex.large",
+      "description": "$0.08479 per On Demand Linux c7i-flex.large Instance Hour",
+      "price": {
+        "USD": "0.0847900000"
+      },
+      "unit": "Hrs"
+    },
+    {
+      "sku": "YR3MEJZD3USM8NC3",
+      "type": "t3.medium",
+      "description": "$0.0416 per On Demand Linux t3.medium Instance Hour",
+      "price": {
+        "USD": "0.0416000000"
+      },
+      "unit": "Hrs"
+    },
+    {
+      "sku": "KZJJ34U6VU5DJ9CM",
+      "type": "gp3",
+      "description": "$0.04 per provisioned MiBps-month of gp3 - US East (Ohio)",
+      "price": {
+        "USD": "40.9600000000"
+      },
+      "unit": "GiBps-mo"
+    },
+    {
+      "sku": "M6UGCCQ3CDJQAA37",
+      "type": "gp3",
+      "description": "$0.08 per GB-month of General Purpose (gp3) provisioned storage - US East (Ohio)",
+      "price": {
+        "USD": "0.0800000000"
+      },
+      "unit": "GB-Mo"
+    }
+  ]
+}
