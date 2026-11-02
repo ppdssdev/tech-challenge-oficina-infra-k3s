@@ -43,8 +43,8 @@ variable "instance_type" {
   type    = string
   default = "t3.medium"
   validation {
-    condition     = contains(["t3.medium", "c7i-flex.large"], var.instance_type)
-    error_message = "Somente t3.medium ou c7i-flex.large (2 vCPU/4 GiB); confirmar Free Plan e preço."
+    condition     = contains(["t3.medium", "c7i-flex.large", "m7i-flex.large"], var.instance_type)
+    error_message = "Somente tipos aprovados; confirmar Free Plan e preço."
   }
 }
 variable "root_volume_gib" {
@@ -71,5 +71,38 @@ variable "https_ingress_cidrs" {
   validation {
     condition     = alltrue([for c in var.https_ingress_cidrs : can(cidrnetmask(c))])
     error_message = "Use CIDRs IPv4 válidos."
+  }
+}
+
+variable "enable_secretsmanager_endpoint" {
+  type        = bool
+  default     = false
+  nullable    = false
+  description = "Habilitar antes de ativar Lambda com Secrets Manager; endpoint pago em duas AZs."
+}
+
+variable "secretsmanager_endpoint_secret_arn" {
+  type        = string
+  default     = null
+  description = "ARN completo do segredo de aplicação, nunca seu valor nem o segredo administrativo RDS."
+  validation {
+    condition = var.secretsmanager_endpoint_secret_arn == null ? true : can(regex(
+      "^arn:aws:secretsmanager:us-east-2:${var.aws_account_id}:secret:[A-Za-z0-9/_+=.@-]+-[A-Za-z0-9]{6}$",
+      var.secretsmanager_endpoint_secret_arn
+    ))
+    error_message = "Use ARN completo sem wildcard, na conta autorizada e us-east-2."
+  }
+}
+
+variable "secretsmanager_endpoint_role_arn" {
+  type        = string
+  default     = null
+  description = "ARN IAM exato da role de execução auth; referência aprovada, sem dependência de state Lambda."
+  validation {
+    condition = var.secretsmanager_endpoint_role_arn == null ? true : can(regex(
+      "^arn:aws:iam::${var.aws_account_id}:role/[A-Za-z0-9/+=,.@_-]+$",
+      var.secretsmanager_endpoint_role_arn
+    ))
+    error_message = "Use ARN de role IAM sem wildcard, na conta autorizada; não ARN de sessão STS."
   }
 }
