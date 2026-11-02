@@ -1,7 +1,10 @@
 [
   "aws_default_security_group.closed",
+  "aws_ecr_repository.api",
   "aws_iam_instance_profile.node",
   "aws_iam_role.node",
+  "aws_iam_role_policy.app_secrets",
+  "aws_iam_role_policy.ecr_pull",
   "aws_iam_role_policy.ssm",
   "aws_instance.node",
   "aws_internet_gateway.this",
@@ -12,9 +15,17 @@
   "aws_route_table_association.public",
   "aws_security_group.app",
   "aws_security_group.auth",
+  "aws_security_group.secretsmanager_endpoint",
   "aws_subnet.private",
   "aws_subnet.public",
   "aws_vpc.this",
+  "aws_vpc_endpoint.secretsmanager",
+  "aws_vpc_security_group_egress_rule.app_to_postgres",
+  "aws_vpc_security_group_egress_rule.app_to_secretsmanager",
+  "aws_vpc_security_group_egress_rule.auth_to_postgres",
+  "aws_vpc_security_group_egress_rule.auth_to_secretsmanager",
   "aws_vpc_security_group_egress_rule.https",
+  "aws_vpc_security_group_ingress_rule.app_to_secretsmanager",
+  "aws_vpc_security_group_ingress_rule.auth_to_secretsmanager",
   "aws_vpc_security_group_ingress_rule.https"
 ]

@@ -1,7 +1,7 @@
 # Oficina — infraestrutura AWS/K3s (Fase 3)
 
 Terraform real para **staging em us-east-2**, pronto para revisão e provisionamento
-posterior. **Nenhum recurso AWS provisionado; K3s não validado em execução na AWS.**
+posterior. **Etapa 1: root separado de RDS; nenhum recurso AWS alterado nesta entrega.**
 Sem CD, plan real no CI, apply/destroy automático, OIDC de criação ou merge automático.
 
 ```mermaid
@@ -69,9 +69,19 @@ e o [procedimento de destruição](docs/destroy-runbook.md), incluindo dependên
 backups e busca de órfãos. Estes comandos não foram executados nesta entrega.
 
 Ordem: K3s/rede -> RDS -> migrações/aplicação -> Lambda/auth -> observabilidade.
-[Arquitetura e contrato v2](docs/aws-architecture.md) define outputs tipados,
-regras SG de propriedade da stack RDS e publicação sem leitura de state cruzado.
-Registry, banco, endpoint público/JWKS/TLS e aplicação permanecem futuros.
+[Contrato v3 e responsabilidades](docs/stack-contract.md) define outputs tipados,
+egress app/auth 5432 de propriedade K3s e ingress do banco de propriedade RDS.
+ECR e IAM de pull/secrets locais estão preservados. Banco fica na próxima etapa;
+endpoint público/JWKS/TLS e integração das aplicações permanecem pendentes.
+
+Endpoint privado Secrets Manager em `secretsmanager-endpoint.tf`, **desabilitado
+por padrão** (`enable_secretsmanager_endpoint=false`). Quando habilitado, acrescenta
+endpoint Interface em duas AZs, SG exclusivo e regras auth/app ↔ endpoint TCP
+443, com Private DNS e permissões separadas para auth e EC2/K3s. A role auth lê
+somente o segredo informado; a role do nó mantém os três segredos do IAM existente.
+Habilitá-lo antes de ativar a Lambda que consome Secrets Manager; o ID é publicado
+em `secretsmanager_endpoint_id`, separado do contrato v3. Não cria NAT nem altera
+as regras PostgreSQL. [Integração, impacto DNS e custos de uma/duas AZs](docs/secretsmanager-endpoint.md).
 
 [Custos](docs/cost-estimate.md), [Free Plan](docs/free-plan-compatibility.md) e
 [relatório de segurança](docs/security-report.md) são leitura obrigatória.

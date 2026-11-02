@@ -5,9 +5,9 @@ resource "aws_security_group" "app" {
   tags        = { Name = "${local.name}-app" }
 }
 resource "aws_security_group" "auth" {
-  #checkov:skip=CKV2_AWS_5:SG de contrato reservado para ENIs da futura Lambda; sem entrada ou saída.
+  #checkov:skip=CKV2_AWS_5:SG reservado para ENIs da futura Lambda; entrada fechada, saída PostgreSQL privada.
   name        = "${local.name}-auth"
-  description = "Identidade de rede da futura Lambda; sem regras nesta stack"
+  description = "Identidade de rede da futura Lambda; saida PostgreSQL privada"
   vpc_id      = aws_vpc.this.id
   tags        = { Name = "${local.name}-auth" }
 }
@@ -29,4 +29,26 @@ resource "aws_vpc_security_group_ingress_rule" "https" {
   from_port         = 443
   to_port           = 443
   tags              = { Name = "${local.name}-https-in" }
+}
+
+# Esta stack possui o egress; infra-rds possui somente o ingresso no SG do banco.
+resource "aws_vpc_security_group_egress_rule" "app_to_postgres" {
+  for_each          = aws_subnet.private
+  security_group_id = aws_security_group.app.id
+  description       = "PostgreSQL para subnet privada ${each.key}"
+  cidr_ipv4         = each.value.cidr_block
+  ip_protocol       = "tcp"
+  from_port         = 5432
+  to_port           = 5432
+}
+
+# Esta stack possui o egress; infra-rds possui somente o ingresso no SG do banco.
+resource "aws_vpc_security_group_egress_rule" "auth_to_postgres" {
+  for_each          = aws_subnet.private
+  security_group_id = aws_security_group.auth.id
+  description       = "PostgreSQL para subnet privada ${each.key}"
+  cidr_ipv4         = each.value.cidr_block
+  ip_protocol       = "tcp"
+  from_port         = 5432
+  to_port           = 5432
 }

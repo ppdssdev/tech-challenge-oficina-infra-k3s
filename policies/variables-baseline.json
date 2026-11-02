@@ -82,6 +82,22 @@
       "${bool}"
     ]
   },
+  "enable_secretsmanager_endpoint": {
+    "__end_line__": 82,
+    "__start_line__": 77,
+    "default": [
+      false
+    ],
+    "description": [
+      "Habilitar antes de ativar Lambda com Secrets Manager; endpoint pago em duas AZs."
+    ],
+    "nullable": [
+      false
+    ],
+    "type": [
+      "${bool}"
+    ]
+  },
   "environment": {
     "__end_line__": 9,
     "__start_line__": 1,
@@ -140,10 +156,10 @@
     "validation": [
       {
         "condition": [
-          "${contains(['t3.medium', 'c7i-flex.large'],var.instance_type)}"
+          "${contains(['t3.medium', 'c7i-flex.large', 'm7i-flex.large'],var.instance_type)}"
         ],
         "error_message": [
-          "Somente t3.medium ou c7i-flex.large (2 vCPU/4 GiB); confirmar Free Plan e pre\u00e7o."
+          "Somente tipos aprovados; confirmar Free Plan e pre\u00e7o."
         ]
       }
     ]
@@ -184,6 +200,52 @@
         ],
         "error_message": [
           "gp3 entre 30 e 40 GiB."
+        ]
+      }
+    ]
+  },
+  "secretsmanager_endpoint_role_arn": {
+    "__end_line__": 108,
+    "__start_line__": 97,
+    "default": [
+      null
+    ],
+    "description": [
+      "ARN IAM exato da role de execu\u00e7\u00e3o auth; refer\u00eancia aprovada, sem depend\u00eancia de state Lambda."
+    ],
+    "type": [
+      "${string}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${var.secretsmanager_endpoint_role_arn == None ? True : can(regex(\"^arn:aws:iam::${var.aws_account_id}:role/[A-Za-z0-9/+=,.@_-]+$\",var.secretsmanager_endpoint_role_arn))}"
+        ],
+        "error_message": [
+          "Use ARN de role IAM sem wildcard, na conta autorizada; n\u00e3o ARN de sess\u00e3o STS."
+        ]
+      }
+    ]
+  },
+  "secretsmanager_endpoint_secret_arn": {
+    "__end_line__": 95,
+    "__start_line__": 84,
+    "default": [
+      null
+    ],
+    "description": [
+      "ARN completo do segredo de aplica\u00e7\u00e3o, nunca seu valor nem o segredo administrativo RDS."
+    ],
+    "type": [
+      "${string}"
+    ],
+    "validation": [
+      {
+        "condition": [
+          "${var.secretsmanager_endpoint_secret_arn == None ? True : can(regex(\"^arn:aws:secretsmanager:us-east-2:${var.aws_account_id}:secret:[A-Za-z0-9/_+=.@-]+-[A-Za-z0-9]{6}$\",var.secretsmanager_endpoint_secret_arn))}"
+        ],
+        "error_message": [
+          "Use ARN completo sem wildcard, na conta autorizada e us-east-2."
         ]
       }
     ]

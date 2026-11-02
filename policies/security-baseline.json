@@ -11,6 +11,38 @@
       "${aws_vpc.this.id}"
     ]
   },
+  "aws_ecr_repository.api": {
+    "__end_line__": 17,
+    "__start_line__": 1,
+    "encryption_configuration": [
+      {
+        "encryption_type": [
+          "AES256"
+        ]
+      }
+    ],
+    "force_delete": [
+      false
+    ],
+    "image_scanning_configuration": [
+      {
+        "scan_on_push": [
+          true
+        ]
+      }
+    ],
+    "image_tag_mutability": [
+      "IMMUTABLE"
+    ],
+    "name": [
+      "oficina-${var.environment}-api"
+    ],
+    "tags": [
+      {
+        "Name": "oficina-${var.environment}-api"
+      }
+    ]
+  },
   "aws_iam_instance_profile.node": {
     "__end_line__": 27,
     "__start_line__": 23,
@@ -39,6 +71,32 @@
       {
         "Name": "${local.name}-node"
       }
+    ]
+  },
+  "aws_iam_role_policy.app_secrets": {
+    "__end_line__": 25,
+    "__start_line__": 1,
+    "name": [
+      "oficina-app-secrets-read"
+    ],
+    "policy": [
+      "${jsonencode({'Version': '2012-10-17', 'Statement': [{'Sid': 'ReadOnlyApplicationSecrets', 'Effect': 'Allow', 'Action': ['secretsmanager:GetSecretValue'], 'Resource': '${[for secret_name in [\\'oficina/staging/app-db-password\\', \\'oficina/staging/jwt-secret\\', \\'oficina/staging/admin-password\\'] : \"arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:${secret_name}-??????\"]}'}]})}"
+    ],
+    "role": [
+      "${aws_iam_role.node.id}"
+    ]
+  },
+  "aws_iam_role_policy.ecr_pull": {
+    "__end_line__": 27,
+    "__start_line__": 1,
+    "name": [
+      "ecr-pull-minimal"
+    ],
+    "policy": [
+      "${jsonencode({'Version': '2012-10-17', 'Statement': [{'Sid': 'ECRAuthentication', 'Effect': 'Allow', 'Action': ['ecr:GetAuthorizationToken'], 'Resource': '*'}, {'Sid': 'PullOficinaImage', 'Effect': 'Allow', 'Action': ['ecr:BatchCheckLayerAvailability', 'ecr:BatchGetImage', 'ecr:GetDownloadUrlForLayer'], 'Resource': '${aws_ecr_repository.api.arn}'}]})}"
+    ],
+    "role": [
+      "${aws_iam_role.node.id}"
     ]
   },
   "aws_iam_role_policy.ssm": {
@@ -273,7 +331,7 @@
     "__end_line__": 13,
     "__start_line__": 7,
     "description": [
-      "Identidade de rede da futura Lambda; sem regras nesta stack"
+      "Identidade de rede da futura Lambda; saida PostgreSQL privada"
     ],
     "name": [
       "${local.name}-auth"
@@ -281,6 +339,27 @@
     "tags": [
       {
         "Name": "${local.name}-auth"
+      }
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_security_group.secretsmanager_endpoint": {
+    "__end_line__": 9,
+    "__start_line__": 3,
+    "description": [
+      "Secrets Manager privado: HTTPS de auth e EC2/K3s"
+    ],
+    "for_each": [
+      "${var.enable_secretsmanager_endpoint ? toset(['enabled']) : toset([])}"
+    ],
+    "name": [
+      "${local.name}-secretsmanager-endpoint"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-secretsmanager-endpoint"
       }
     ],
     "vpc_id": [
@@ -353,6 +432,163 @@
       }
     ]
   },
+  "aws_vpc_endpoint.secretsmanager": {
+    "__end_line__": 104,
+    "__start_line__": 52,
+    "depends_on": [
+      [
+        "${aws_vpc_security_group_ingress_rule.auth_to_secretsmanager}",
+        "${aws_vpc_security_group_egress_rule.auth_to_secretsmanager}",
+        "${aws_vpc_security_group_ingress_rule.app_to_secretsmanager}",
+        "${aws_vpc_security_group_egress_rule.app_to_secretsmanager}"
+      ]
+    ],
+    "for_each": [
+      "${aws_security_group.secretsmanager_endpoint}"
+    ],
+    "lifecycle": [
+      {
+        "precondition": [
+          {
+            "condition": [
+              "${var.secretsmanager_endpoint_secret_arn != None && var.secretsmanager_endpoint_role_arn != None}"
+            ],
+            "error_message": [
+              "Endpoint habilitado exige ARN exato do segredo de aplica\u00e7\u00e3o e da role Lambda."
+            ]
+          }
+        ]
+      }
+    ],
+    "policy": [
+      "${jsonencode({'Version': '2012-10-17', 'Statement': [{'Sid': 'AuthReadOnlyApplicationSecret', 'Effect': 'Allow', 'Principal': '*', 'Action': 'secretsmanager:GetSecretValue', 'Resource': '${var.secretsmanager_endpoint_secret_arn}', 'Condition': {'ArnEquals': {'aws:PrincipalArn': '${var.secretsmanager_endpoint_role_arn}'}}}, {'Sid': 'NodeReadOnlyApplicationSecrets', 'Effect': 'Allow', 'Principal': '*', 'Action': 'secretsmanager:GetSecretValue', 'Resource': '${jsondecode(aws_iam_role_policy.app_secrets.policy).Statement[0].Resource}', 'Condition': {'ArnEquals': {'aws:PrincipalArn': '${aws_iam_role.node.arn}'}}}]})}"
+    ],
+    "private_dns_enabled": [
+      true
+    ],
+    "security_group_ids": [
+      [
+        "${each.value.id}"
+      ]
+    ],
+    "service_name": [
+      "com.amazonaws.us-east-2.secretsmanager"
+    ],
+    "subnet_ids": [
+      "${[for key in sort(keys(aws_subnet.private)) : aws_subnet.private[key].id]}"
+    ],
+    "tags": [
+      {
+        "Name": "${local.name}-secretsmanager"
+      }
+    ],
+    "vpc_endpoint_type": [
+      "Interface"
+    ],
+    "vpc_id": [
+      "${aws_vpc.this.id}"
+    ]
+  },
+  "aws_vpc_security_group_egress_rule.app_to_postgres": {
+    "__end_line__": 43,
+    "__start_line__": 35,
+    "cidr_ipv4": [
+      "${each.value.cidr_block}"
+    ],
+    "description": [
+      "PostgreSQL para subnet privada ${each.key}"
+    ],
+    "for_each": [
+      "${aws_subnet.private}"
+    ],
+    "from_port": [
+      5432
+    ],
+    "ip_protocol": [
+      "tcp"
+    ],
+    "security_group_id": [
+      "${aws_security_group.app.id}"
+    ],
+    "to_port": [
+      5432
+    ]
+  },
+  "aws_vpc_security_group_egress_rule.app_to_secretsmanager": {
+    "__end_line__": 50,
+    "__start_line__": 42,
+    "description": [
+      "HTTPS app para SG do endpoint Secrets Manager"
+    ],
+    "for_each": [
+      "${aws_security_group.secretsmanager_endpoint}"
+    ],
+    "from_port": [
+      443
+    ],
+    "ip_protocol": [
+      "tcp"
+    ],
+    "referenced_security_group_id": [
+      "${each.value.id}"
+    ],
+    "security_group_id": [
+      "${aws_security_group.app.id}"
+    ],
+    "to_port": [
+      443
+    ]
+  },
+  "aws_vpc_security_group_egress_rule.auth_to_postgres": {
+    "__end_line__": 54,
+    "__start_line__": 46,
+    "cidr_ipv4": [
+      "${each.value.cidr_block}"
+    ],
+    "description": [
+      "PostgreSQL para subnet privada ${each.key}"
+    ],
+    "for_each": [
+      "${aws_subnet.private}"
+    ],
+    "from_port": [
+      5432
+    ],
+    "ip_protocol": [
+      "tcp"
+    ],
+    "security_group_id": [
+      "${aws_security_group.auth.id}"
+    ],
+    "to_port": [
+      5432
+    ]
+  },
+  "aws_vpc_security_group_egress_rule.auth_to_secretsmanager": {
+    "__end_line__": 29,
+    "__start_line__": 21,
+    "description": [
+      "HTTPS auth somente para SG do endpoint Secrets Manager"
+    ],
+    "for_each": [
+      "${aws_security_group.secretsmanager_endpoint}"
+    ],
+    "from_port": [
+      443
+    ],
+    "ip_protocol": [
+      "tcp"
+    ],
+    "referenced_security_group_id": [
+      "${each.value.id}"
+    ],
+    "security_group_id": [
+      "${aws_security_group.auth.id}"
+    ],
+    "to_port": [
+      443
+    ]
+  },
   "aws_vpc_security_group_egress_rule.https": {
     "__end_line__": 22,
     "__start_line__": 14,
@@ -375,6 +611,56 @@
       {
         "Name": "${local.name}-https-out"
       }
+    ],
+    "to_port": [
+      443
+    ]
+  },
+  "aws_vpc_security_group_ingress_rule.app_to_secretsmanager": {
+    "__end_line__": 39,
+    "__start_line__": 31,
+    "description": [
+      "HTTPS da EC2/K3s para Secrets Manager privado"
+    ],
+    "for_each": [
+      "${aws_security_group.secretsmanager_endpoint}"
+    ],
+    "from_port": [
+      443
+    ],
+    "ip_protocol": [
+      "tcp"
+    ],
+    "referenced_security_group_id": [
+      "${aws_security_group.app.id}"
+    ],
+    "security_group_id": [
+      "${each.value.id}"
+    ],
+    "to_port": [
+      443
+    ]
+  },
+  "aws_vpc_security_group_ingress_rule.auth_to_secretsmanager": {
+    "__end_line__": 19,
+    "__start_line__": 11,
+    "description": [
+      "HTTPS da Lambda auth para Secrets Manager privado"
+    ],
+    "for_each": [
+      "${aws_security_group.secretsmanager_endpoint}"
+    ],
+    "from_port": [
+      443
+    ],
+    "ip_protocol": [
+      "tcp"
+    ],
+    "referenced_security_group_id": [
+      "${aws_security_group.auth.id}"
+    ],
+    "security_group_id": [
+      "${each.value.id}"
     ],
     "to_port": [
       443

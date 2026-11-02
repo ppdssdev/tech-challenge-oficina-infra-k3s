@@ -22,8 +22,9 @@ de expansão automática. t3 usa créditos standard para evitar cobrança unlimi
 com risco de throttling sob carga sustentada. Não há Spot.
 
 VPC, subnets, SG, tabelas, IGW e IAM não introduzem mensalidade horária própria
-nesta topologia. Sem EIP reservado, CMK própria, NAT, EKS, load balancer, endpoints,
-CloudWatch custom logs/detailed monitoring ou registry declarados. Logs ficam no
+nesta topologia. Sem EIP reservado, CMK própria, NAT, EKS, load balancer ou
+CloudWatch custom logs/detailed monitoring. ECR e endpoint Secrets Manager opcional
+não estão incluídos nos totais históricos acima. Logs ficam no
 root; consumo de disco deve ser monitorado. SSM Session Manager para EC2 não é
 orçado como serviço auxiliar por hora; recursos opcionais de logging/S3/KMS não
 estão ativados. Confirmar condições vigentes antes de uso.
@@ -37,6 +38,13 @@ snapshots de backup, registry, DNS, certificados pagos, S3 state e endpoints fut
 não estão incluídos; exigem estimativa separada. Para RDS privado + Lambda,
 endpoints interface cobram por AZ/hora e GB: comparar com alternativas antes de
 adicionar. NAT continua proibido nesta fase.
+
+Prompt 11: [comparação de uma versus duas AZs](secretsmanager-endpoint.md#uma-versus-duas-azs-e-custo-recorrente).
+O endpoint é desabilitado por padrão (incremento zero); quando habilitado, usa
+duas AZs: 1460 AZ-horas/mês, mais GB processados. Com tarifa ilustrativa de
+US$0,01/AZ-hora, são US$14,60/mês (uma AZ: US$7,30), além de Secrets Manager.
+Confirmar cotação us-east-2 antes de habilitar. Não somar esse opcional aos totais
+como se estivesse ativo nem presumir que concorrência Lambda zero encerra a cobrança.
 
 Uma janela de 8 h com EC2 ligada representa aproximadamente US$0,399 default ou
 US$0,745 alternativa, assumindo EBS apagado no fim e rateio simplificado; não é
