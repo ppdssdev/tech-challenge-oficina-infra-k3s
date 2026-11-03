@@ -7,12 +7,16 @@ import hcl2
 ROOT = Path(__file__).resolve().parents[1]
 
 def validate(root=ROOT):
+    assert (root / "github_oidc.tf").is_file(), "OIDC configuration missing"
     resources = {}
     data_sources = {}
     config = {}
     outputs = {}
     for path in root.glob("*.tf"):
         doc = hcl2.loads(path.read_text())
+        if path.name == "github_oidc.tf":
+            assert doc == json.loads((ROOT / "policies/github-oidc-baseline.json").read_text()), "OIDC trust/provider/permission boundary changed"
+            continue
         for forbidden in ("module", "import", "removed"):
             assert forbidden not in doc, f"Unexpected {forbidden}"
         for block in doc.get("resource", []):
