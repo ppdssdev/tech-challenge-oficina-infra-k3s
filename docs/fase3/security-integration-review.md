@@ -72,7 +72,7 @@ aws --profile oficina-staging --region us-east-2 ssm start-session \
 
 Conferir listener somente em loopback e proprietário do processo. Nenhum JWT/CPF passa por argumentos de shell ou comandos SSM; o bearer futuro permanece em memória do smoke e no stream encaminhado. Não ativar tracing HTTP, captura de tráfego ou gravação de terminal. Falha de sessão/listener, pod substituído ou diferença de digest invalida a atestação e bloqueia a janela. Encerrar ambos os processos após a operação. Não expor `0.0.0.0`.
 
-Para RDS usar [inventário e TLS privado](https://github.com/ppdssdev/tech-challenge-oficina-infra-rds/blob/docs/security-integration-review/docs/fase3/security-integration-review.md): sessão SSM separada até o hostname RDS e `hostaddr=127.0.0.1:15432`, preservando `host` RDS/CA/`verify-full`. Esse documento está preparado na branch de revisão; até sua publicação consultar o worktree irmão. Não executar bootstrap ou SQL destrutivo.
+Para RDS usar [inventário e TLS privado](https://github.com/ppdssdev/tech-challenge-oficina-infra-rds/blob/docs/fase3-final-audit/docs/fase3/security-integration-review.md): sessão SSM separada até o hostname RDS e `hostaddr=127.0.0.1 port=15432`, preservando `host` RDS/CA/`verify-full`. Esse documento acompanha a PR RDS #8; o link usa a branch documental até a integração em main. Não executar bootstrap ou SQL destrutivo.
 
 ## Gates de dados, janela e aceite
 
@@ -87,3 +87,17 @@ O preflight é somente leitura; a janela de emissão requer autorização separa
 Roteiro preliminar: registrar UTC/SHAs/checks reais; estado fechado inicial; digest/UID e transporte aprovado; inventário agregado e proveniência privada; gates criptográficos; matriz 200/401/403/404; estado final de concorrência zero lido por duas vias. Prints e logs não devem conter tokens, CPFs, senhas, dados pessoais, Secrets ou bodies de OS.
 
 Integrar [API #13](https://github.com/ppdssdev/tech-challenge-oficina/pull/13) antes de [API #14](https://github.com/ppdssdev/tech-challenge-oficina/pull/14), e [Lambda #6](https://github.com/ppdssdev/tech-challenge-oficina-auth-lambda/pull/6) com correção antes de [Lambda #7](https://github.com/ppdssdev/tech-challenge-oficina-auth-lambda/pull/7). Relacionar [K3s #6](https://github.com/ppdssdev/tech-challenge-oficina-infra-k3s/pull/6) e [RDS #8](https://github.com/ppdssdev/tech-challenge-oficina-infra-rds/pull/8), reconsultando heads/checks após cada alteração futura. Esta revisão não faz merge, deploy nem modifica o README de outra frente.
+
+## Snapshot consultado e correção preparada
+
+[Snapshot GitHub/AWS e acesso efetivo](https://github.com/ppdssdev/tech-challenge-oficina/blob/docs/fase3-final-audit/docs/fase3/security-review-evidence.md):
+checks das bases consultadas aprovados; API write e outros três read para
+`soat-architecture`, sem convites pendentes. Lambda zero, Gateway desabilitado
+AWS_IAM, API 3/3 privada; nenhuma consulta SQL no RDS. Não confundir esses
+checks anteriores com validação dos novos heads documentais.
+
+[Lambda #8](https://github.com/ppdssdev/tech-challenge-oficina-auth-lambda/pull/8)
+contém a correção do adapter e prazo de cleanup, empilhada sobre #6. Sua base não
+aciona o workflow atual; exigir CI no SHA final antes da integração em main.
+O [runbook corretivo](https://github.com/ppdssdev/tech-challenge-oficina-auth-lambda/blob/fix/private-cpf-review/docs/fase3/private-transport-review.md)
+traz os comandos privados e limites. A janela continua não autorizada nesta frente.
