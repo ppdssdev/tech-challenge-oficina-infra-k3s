@@ -1,3 +1,6 @@
+> **Registro histórico:** resultados e pendências abaixo pertencem à etapa original.
+> Estado vigente em 2026-11-03: [consolidação auditada](fase3-evidence.md).
+
 # Compatibilidade Free Plan — verificação em 2026-11-01
 
 Não foi consultada a conta AWS. Saldo, data de abertura, quotas, permissões e
