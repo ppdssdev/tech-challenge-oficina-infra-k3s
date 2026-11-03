@@ -1,28 +1,34 @@
+> **Leitura atualizada em 2026-11-03:** este runbook conserva o contexto da sua
+> preparação original. A existência de recursos cloud e o CI atual estão em
+> [evidências consolidadas](fase3-evidence.md); itens não observados continuam pendentes.
+> Backend S3 já está definido em código; não interpretar menções históricas a backend
+> local ou “nenhum recurso provisionado nesta etapa” como estado atual do ambiente.
+
 # Arquitetura AWS e contrato v3
 
-Código implementado; nenhum provisionamento ou teste de conectividade AWS realizado.
-Staging usa 10.30.0.0/16; reservar 10.31.0.0/16 para futura production, em outro
-root/state, após PR de autorização. Pods 10.42.0.0/16 e serviços 10.43.0.0/16 não
-sobrepõem esses CIDRs. Confirmar ausência de sobreposição com VPN/rede corporativa.
+Código e recursos staging auditados em 2026-11-03; consultar [evidências](fase3-evidence.md).
+CIDRs permanecem definidos em network.tf e bootstrap; endereços foram omitidos
+deste desenho. Confirmar sobreposição antes de integrar VPN/rede corporativa.
+Produção depende de projeto e comprovação próprios.
 
 ```mermaid
 flowchart TB
   Internet -->|443 somente opt-in| IGW
   SSM[SSM público] <-->|TLS 443 iniciado pelo agente| EC2
-  subgraph VPC[staging 10.30.0.0/16 - us-east-2]
+  subgraph VPC[staging - us-east-2]
     IGW[Internet Gateway]
     subgraph A[us-east-2a]
-      EC2[Subnet pública 10.30.0.0/24 - EC2 K3s]
-      P1[Privada 10.30.10.0/24]
+      EC2[Subnet pública - EC2 K3s]
+      P1[Privada]
     end
     subgraph B[us-east-2b]
-      P2[Privada 10.30.11.0/24]
+      P2[Privada]
     end
     IGW --- EC2
-    P1 --- RDS[RDS futuro - não criado]
+    P1 --- RDS[RDS privado - outra stack]
     P2 --- RDS
-    EC2 -. 5432 futuro via SG .-> RDS
-    Lambda[Lambda futura SG auth] -. 5432 futuro via SG .-> RDS
+    EC2 -. 5432 via SG .-> RDS
+    Lambda[Lambda fechada - SG auth] -. 5432 via SG .-> RDS
     Lambda -. HTTPS 443 .-> EP[Endpoint Secrets Manager opcional / duas AZs / Private DNS]
     EC2 -. HTTPS 443 .-> EP
   end
@@ -42,7 +48,7 @@ flowchart LR
   SHA --> Systemd[systemd K3s + firewall IMDS]
   Systemd --> Server[Control plane + SQLite + containerd]
   Server --> Core[CoreDNS + metrics-server + local-path]
-  Server -. futuro .-> API[Spring Boot + probes + HPA]
+  Server --> API[Spring Boot + probes + HPA]
   Server -. futuro .-> Ingress[Ingress TLS 443]
   Server -. opcional privado .-> Obs[Prometheus e Grafana reduzidos]
   Server --> Disk[EBS gp3 criptografado - root 30 GiB]
@@ -103,9 +109,8 @@ kubectl top e HPA; single-node limita réplicas e não aumenta capacidade físic
 Prometheus/Grafana só após medir memória: retenção curta, requests/limits e acesso
 via SSM/port-forward. Sem stack completa automática neste bootstrap.
 
-## Gate da integração RDS futura
+## Validações da integração RDS
 
 Seguir [contrato v3](stack-contract.md). RDS deve validar identidade, subnets e SGs,
-criar somente recursos próprios e ingresso 5432 app/auth. Após provisionamento
-futuro autorizado, testar DNS privado, TCP/TLS e bloqueio de origem não autorizada,
+criar somente recursos próprios e ingresso 5432 app/auth. RDS observado disponível; ainda falta testar DNS privado, TCP/TLS e bloqueio de origem não autorizada,
 sem registrar senhas. O root K3s não provisiona banco.

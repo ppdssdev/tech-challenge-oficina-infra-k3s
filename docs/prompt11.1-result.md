@@ -1,3 +1,6 @@
+> **Registro histórico:** resultados e pendências abaixo pertencem à etapa original.
+> Estado vigente em 2026-11-03: [consolidação auditada](fase3-evidence.md).
+
 # Resultado — Prompt 11.1
 
 Em 2026-11-02, a implementação foi **aplicada no checkout infra-k3s**. O patch e

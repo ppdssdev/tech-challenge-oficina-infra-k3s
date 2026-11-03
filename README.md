@@ -1,95 +1,101 @@
-# Oficina — infraestrutura AWS/K3s (Fase 3)
+# Oficina — infraestrutura AWS/K3s, Fase 3
 
-Terraform real para **staging em us-east-2**, pronto para revisão e provisionamento
-posterior. **Etapa 1: root separado de RDS; nenhum recurso AWS alterado nesta entrega.**
-Sem CD, plan real no CI, apply/destroy automático, OIDC de criação ou merge automático.
+**Grupo 97** · **Pedro Paulo dos Santos Silva** · Discord **pedropaulo6447**.
+Stack Terraform de rede, EC2/K3s, IAM do nó, ECR e endpoint privado Secrets Manager.
+[Entrega consolidada](https://github.com/ppdssdev/tech-challenge-oficina/blob/main/docs/fase3/README.md) · [evidências deste repo](docs/fase3-evidence.md).
+
+## Estado auditado e stack
+
+2026-11-03: EC2 **m7i-flex.large** running, K3s **v1.34.6+k3s1**, um nó Ready,
+SSM Online, API 3/3 e HPA operacional. ECR IMMUTABLE/KMS/scanOnPush; endpoint Secrets
+Manager Interface disponível em duas subnets. SG app sem ingressos; API ClusterIP,
+sem Ingress. Prometheus/Grafana/tracing não constam no inventário do cluster;
+Metrics Server está operacional. Produção não demonstrada.
+
+Terraform 1.14.6/provider AWS 6.38.0, Ubuntu 24.04 amd64, scripts Bash e políticas
+Python. [compute.tf](compute.tf) usa AMI informada/verificada e K3s fixado no bootstrap.
+Default de instance_type é t3.medium; o tipo observado é alternativa permitida.
+Sem plan/state, a auditoria não certifica ausência de drift.
 
 ```mermaid
 flowchart TB
-  Internet --- IGW
-  subgraph VPC[10.30.0.0/16 - Ohio]
-    IGW[Internet Gateway] --- Public[10.30.0.0/24 - AZ a - EC2 K3s]
-    PrivateA[10.30.10.0/24 - AZ a - sem internet]
-    PrivateB[10.30.11.0/24 - AZ b - sem internet]
-    Public -. futuro SG 5432 .-> DB[RDS futuro]
-    PrivateA -.-> DB
-    PrivateB -.-> DB
+  SSM["SSM / operador IAM"] --> N["EC2 + K3s single-node; subnet pública"]
+  N -->|"saída HTTPS"| ECR["ECR imutável"]
+  subgraph VPC["VPC: pública AZ a e privadas AZ a/b"]
+    N -->|"SG app / 5432"| R["RDS: stack separada"]
+    L["Lambda: stack separada / SG auth"] -->|"5432"| R
+    N -->|"443"| E["Endpoint Interface Secrets Manager"]
+    L -->|"443"| E
   end
-  SSM[SSM - conexão TLS iniciada pela EC2] --- Public
+  E --> SM["Secrets Manager"]
 ```
 
-```mermaid
-flowchart LR
-  Boot[cloud-init] --> Verify[K3s fixo + SHA256]
-  Verify --> Systemd[systemd]
-  Systemd --> K3s[API + SQLite + containerd]
-  K3s --> Metrics[metrics-server]
-  K3s --> EBS[gp3 criptografado]
-  K3s -. futuro .-> App[Java + probes + HPA]
-  K3s -. futuro .-> TLS[Ingress TLS]
-```
+[Arquitetura específica](docs/aws-architecture.md),
+[contrato v3](docs/stack-contract.md), [endpoint privado](docs/secretsmanager-endpoint.md),
+[ADR K3s/EKS](docs/adr/0001-k3s-single-node.md) e
+[ADR Terraform por repo](docs/adr/0002-terraform-repos.md).
 
-Rede em network.tf; SGs em security.tf; IAM mínimo SSM em iam.tf; EC2/AMI/IMDSv2
-em compute.tf; interfaces em outputs.tf. Uma EC2, root gp3 30 GiB (máximo 40),
-sem SSH, 6443 público, NodePort público, NAT, EKS, ALB/NLB, EIP ou banco.
-HTTPS ingress desabilitado por padrão; saída TLS para bootstrap/SSM/registries.
-EBS persiste em reboot/stop; será apagado em replace/destroy. Single-node sem HA.
+## Responsabilidade e segurança
 
-Pré-requisitos: Terraform **1.14.6**, provider **6.38.0** com lockfile, Python 3.12,
-Checkov **3.2.471**, bc-python-hcl2 **0.4.3**, ShellCheck e TFLint **0.61.0**.
-Conta AWS não é necessária à validação:
+[network.tf](network.tf): VPC, uma subnet pública/IGW e duas privadas isoladas;
+sem NAT Gateway. [security.tf](security.tf): SG app/auth; sem 22/6443 públicos,
+HTTPS ingress opt-in, saída HTTPS do nó e 5432 privado. IMDSv2 required/hop 1,
+EBS criptografado e bootstrap com controles. IAM do nó permite SSM, pull ECR e
+leituras específicas de segredos. Não há sincronização automática de Secrets
+Kubernetes comprovada; os runbooks da API tratam configuração externa.
 
-```sh
+RDS pertence ao repo infra-rds; Lambda/Gateway ao auth. Não são criados nesta stack.
+O endpoint Secrets Manager é opcional, default desligado, mas foi observado ativo;
+private DNS e policy devem contemplar auth/app. Não colocar credenciais em tfvars,
+outputs ou logs. [Relatório de segurança](docs/security-report.md).
+
+## Validação local e CI
+
+Requisitos e versões completas em [workflow](.github/workflows/ci.yml) e
+[preflight](scripts/preflight.sh): Terraform, Python 3.12 com Checkov 3.2.471 e
+bc-python-hcl2 0.4.3, ShellCheck; TFLint 0.61.0 na CI.
+
+```bash
 python3 -m venv .venv
 . .venv/bin/activate
 pip install checkov==3.2.471 bc-python-hcl2==0.4.3
 bash scripts/preflight.sh
-tflint --init
-tflint
+terraform fmt -check -recursive
+git diff --check
 ```
 
-Obrigatórias antes de provisionar: `aws_account_id`, `owner`, `ami_id` oficial
-Canonical Ubuntu 24.04 amd64 fixo. Copiar staging.tfvars.example para arquivo local
-ignorado. Confirmar elegibilidade/custos antes de marcar eligibility_confirmed.
-Default t3.medium **não tem elegibilidade presumida**; alternativa c7i-flex.large
-exige avaliação. Production fica reservada para outra revisão, sem segundo ambiente.
+O preflight valida configuração/políticas/testes e não provisiona AWS; init usa
+backend=false. CI tem preflight e TFLint, sem deploy/credenciais AWS em main.
+[Run da baseline aprovado](https://github.com/ppdssdev/tech-challenge-oficina-infra-k3s/actions/runs/41625905236).
+Resultados antigos de Checkov/provider nos prompts são históricos, não estado do CI atual.
 
-Comandos previstos, **apenas depois de autorização explícita**:
+## Deploy, operação e recuperação
 
-```sh
-terraform plan -var-file=environments/staging.tfvars -out=staging.tfplan
-terraform apply staging.tfplan
-terraform plan -destroy -var-file=environments/staging.tfvars -out=cleanup.tfplan
-terraform apply cleanup.tfplan
-```
+[Runbook de deployment](docs/deployment-runbook.md) descreve preparação de conta,
+AMI, orçamento, variáveis e revisão de plan antes de provisionar. Não aplicar
+exemplos de tfvars sem preencher/revisar valores. [Contrato](docs/stack-contract.md)
+publica integration_contract v3 para RDS/auth; não transportar secret values.
+[backend.tf](backend.tf) define S3 staging/k3s com lockfile e encrypt; procedimento
+[MIGRACAO-BACKEND.md](MIGRACAO-BACKEND.md). A auditoria documental não leu/migrou state.
 
-Leia o [passo a passo de provisionamento](docs/deployment-runbook.md), incluindo
-AMI, credenciais temporárias, backend S3 futuro, SSM, túnel Kubernetes e rollback;
-e o [procedimento de destruição](docs/destroy-runbook.md), incluindo dependências,
-backups e busca de órfãos. Estes comandos não foram executados nesta entrega.
+Operação: [checklist operacional](docs/operational-validation.md),
+[backup/restore](docs/backup-restore.md), [desmontagem](docs/destroy-runbook.md).
+Listagens atuais comprovam nó/API/SSM, mas reboot, restore e bloqueio IMDS nos pods
+continuam pendentes. Não executar ensaios destrutivos para validar documentação.
 
-Ordem: K3s/rede -> RDS -> migrações/aplicação -> Lambda/auth -> observabilidade.
-[Contrato v3 e responsabilidades](docs/stack-contract.md) define outputs tipados,
-egress app/auth 5432 de propriedade K3s e ingress do banco de propriedade RDS.
-ECR e IAM de pull/secrets locais estão preservados. Banco fica na próxima etapa;
-endpoint público/JWKS/TLS e integração das aplicações permanecem pendentes.
+[PR OIDC #5](https://github.com/ppdssdev/tech-challenge-oficina-infra-k3s/pull/5)
+propõe federação de validação; não está integrada nem entrega CD. A SCP negou leitura
+do provider na auditoria. Não contornar a política. Release da API por digest é
+responsabilidade do [repo Java](https://github.com/ppdssdev/tech-challenge-oficina).
 
-Endpoint privado Secrets Manager em `secretsmanager-endpoint.tf`, **desabilitado
-por padrão** (`enable_secretsmanager_endpoint=false`). Quando habilitado, acrescenta
-endpoint Interface em duas AZs, SG exclusivo e regras auth/app ↔ endpoint TCP
-443, com Private DNS e permissões separadas para auth e EC2/K3s. A role auth lê
-somente o segredo informado; a role do nó mantém os três segredos do IAM existente.
-Habilitá-lo antes de ativar a Lambda que consome Secrets Manager; o ID é publicado
-em `secretsmanager_endpoint_id`, separado do contrato v3. Não cria NAT nem altera
-as regras PostgreSQL. [Integração, impacto DNS e custos de uma/duas AZs](docs/secretsmanager-endpoint.md).
+## Custos e limitações
 
-[Custos](docs/cost-estimate.md), [Free Plan](docs/free-plan-compatibility.md) e
-[relatório de segurança](docs/security-report.md) são leitura obrigatória.
-Budget US$5 é alerta, não teto de gasto; e-mails não confirmados. Billing deve ser
-acompanhado pelo proprietário. Nenhum upgrade ou acesso root necessário.
+Single-node não tem HA; HPA multiplica pods no mesmo nó. Custos: EC2 do tipo real,
+EBS/snapshots, IPv4, ECR, endpoint Interface em duas AZs, tráfego e operação K3s;
+RDS/auth têm custos próprios. [Estimativas históricas](docs/cost-estimate.md) e
+[Free Plan](docs/free-plan-compatibility.md) exigem atualização com Billing/preço
+antes de decisão. Não foi auditada fatura nem prometida gratuidade.
 
-CI executa fmt/init sem backend/validate, TFLint, Checkov, políticas de inventário,
-segurança/custo, testes por mutação, testes simulados de bootstrap, ShellCheck e
-scanner de segredos. A antiga barreira de bootstrap foi substituída por baseline
-AST revisável: novos recursos exigem revisão de custos e segurança. Exceções são
-locais e justificadas, sem soft-fail. CI não comprova conectividade ou disponibilidade.
+Não há Swagger neste repositório de infraestrutura. Interfaces são outputs Terraform
+v3; API/OpenAPI pertencem ao Java. [RDS](https://github.com/ppdssdev/tech-challenge-oficina-infra-rds)
+e [Auth](https://github.com/ppdssdev/tech-challenge-oficina-auth-lambda) consomem o contrato.

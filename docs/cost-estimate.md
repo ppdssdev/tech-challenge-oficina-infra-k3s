@@ -1,3 +1,6 @@
+> **Registro histórico:** resultados e pendências abaixo pertencem à etapa original.
+> Estado vigente em 2026-11-03: [consolidação auditada](fase3-evidence.md).
+
 # Estimativa de custos — Ohio, 2026-11-01
 
 Cotação pública sem login AWS. Catálogo AmazonEC2 publicado em 2026-10-29T17:56:34Z,
